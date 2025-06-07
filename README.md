@@ -1,8 +1,13 @@
 # EdgeX MessageBus Client
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/clint456/edgex-messagebus-client)](https://goreportcard.com/report/github.com/clint456/edgex-messagebus-client) [![GitHub License](https://img.shields.io/github/license/clint456/edgex-messagebus-client)](https://choosealicense.com/licenses/apache-2.0/)
+[![Go Report Card](https://goreportcard.com/badge/github.com/clint456/edgex-messagebus-client)](https://goreportcard.com/report/github.com/clint456/edgex-messagebus-client)
+[![GitHub License](https://img.shields.io/github/license/clint456/edgex-messagebus-client)](https://choosealicense.com/licenses/apache-2.0/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/clint456/edgex-messagebus-client.svg)](https://pkg.go.dev/github.com/clint456/edgex-messagebus-client)
+[![GitHub release](https://img.shields.io/github/release/clint456/edgex-messagebus-client.svg)](https://github.com/clint456/edgex-messagebus-client/releases)
 
-一个高级的 EdgeX Foundry MessageBus 客户端库，提供简单易用的 API 来进行 MQTT 消息的发布和订阅操作。
+A high-level EdgeX Foundry MessageBus client library that provides a simple and intuitive API for MQTT and NATS message publishing and subscription operations.
+
+一个高级的 EdgeX Foundry MessageBus 客户端库，提供简单易用的 API 来进行 MQTT 和 NATS 消息的发布和订阅操作。
 
 ## 🚀 特性
 
@@ -16,15 +21,31 @@
 - ✅ **错误处理** - 完善的错误处理和日志记录
 - ✅ **健康检查** - 提供客户端健康状态检查
 
-## 📦 安装
+## 📦 Installation | 安装
+
+### Using Go Modules (Recommended)
 
 ```bash
 go get github.com/clint456/edgex-messagebus-client
 ```
 
-## 🛠️ 快速开始
+### Version Pinning
 
-### 基本使用
+To use a specific version:
+
+```bash
+go get github.com/clint456/edgex-messagebus-client@v1.0.0
+```
+
+### Import in your Go code
+
+```go
+import messagebus "github.com/clint456/edgex-messagebus-client"
+```
+
+## 🛠️ Quick Start | 快速开始
+
+### Basic Usage | 基本使用
 
 ```go
 package main
@@ -158,15 +179,140 @@ go func() {
 }()
 ```
 
-## 📄 许可证
+## 🔧 Advanced Usage | 高级用法
+
+### Custom Message Handlers | 自定义消息处理器
+
+```go
+// Advanced message handler with error handling
+handler := func(topic string, message types.MessageEnvelope) error {
+    // Parse message payload
+    var data map[string]interface{}
+    if err := json.Unmarshal(message.Payload.([]byte), &data); err != nil {
+        return fmt.Errorf("failed to parse message: %v", err)
+    }
+
+    // Process the message
+    fmt.Printf("Processing message from %s: %+v\n", topic, data)
+
+    // Return error if processing fails
+    return nil
+}
+```
+
+### Connection Management | 连接管理
+
+```go
+// Check connection status
+if !client.IsConnected() {
+    if err := client.Connect(); err != nil {
+        log.Printf("Reconnection failed: %v", err)
+    }
+}
+
+// Monitor connection health
+go func() {
+    ticker := time.NewTicker(30 * time.Second)
+    defer ticker.Stop()
+
+    for range ticker.C {
+        if err := client.HealthCheck(); err != nil {
+            log.Printf("Health check failed: %v", err)
+            // Implement reconnection logic here
+        }
+    }
+}()
+```
+
+## 📊 Performance Considerations | 性能考虑
+
+- Use appropriate buffer sizes for high-throughput scenarios
+- Consider QoS levels based on your reliability requirements
+- Implement proper error handling to avoid message loss
+- Use connection pooling for multiple clients if needed
+- Monitor memory usage with large message volumes
+
+## 🔒 Security Best Practices | 安全最佳实践
+
+- Always use TLS/SSL in production environments
+- Implement proper authentication and authorization
+- Validate and sanitize all incoming messages
+- Use secure credential storage mechanisms
+- Regularly update dependencies
+
+## 🧪 Testing | 测试
+
+Run the test suite:
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run integration tests (requires EdgeX environment)
+go test -tags=integration ./...
+```
+
+## 📈 Monitoring and Observability | 监控和可观测性
+
+```go
+// Monitor error channel
+go func() {
+    for err := range client.GetErrorChannel() {
+        // Log error or send to monitoring system
+        log.Printf("MessageBus error: %v", err)
+        // metrics.IncrementErrorCounter()
+    }
+}()
+
+// Get client statistics
+info := client.GetClientInfo()
+fmt.Printf("Client stats: %+v\n", info)
+```
+
+## 🔄 Migration Guide | 迁移指南
+
+### From v0.x to v1.x
+
+- Update import paths to use the new module structure
+- Review configuration changes in the Config struct
+- Update error handling patterns
+- Check for deprecated methods
+
+## 📚 Additional Resources | 其他资源
+
+- [EdgeX Foundry Documentation](https://docs.edgexfoundry.org/)
+- [Go Module Documentation](https://pkg.go.dev/github.com/clint456/edgex-messagebus-client)
+- [MQTT Protocol Specification](https://mqtt.org/)
+- [NATS Documentation](https://docs.nats.io/)
+
+## 📄 License | 许可证
+
+This project is licensed under the [Apache-2.0](LICENSE) License.
 
 本项目采用 [Apache-2.0](LICENSE) 许可证。
 
-## 🤝 贡献
+## 🤝 Contributing | 贡献
 
-欢迎提交 Issue 和 Pull Request！
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-## 📞 联系方式
+欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
 
-- 项目地址: [https://github.com/clint456/edgex-messagebus-client](https://github.com/clint456/edgex-messagebus-client)
-- 问题反馈: [Issues](https://github.com/clint456/edgex-messagebus-client/issues)
+## 📞 Support | 支持
+
+- 📖 Documentation: [pkg.go.dev](https://pkg.go.dev/github.com/clint456/edgex-messagebus-client)
+- 🐛 Bug Reports: [GitHub Issues](https://github.com/clint456/edgex-messagebus-client/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/clint456/edgex-messagebus-client/discussions)
+- 📧 Email: Create an issue for support requests
+
+## 🏆 Acknowledgments | 致谢
+
+- EdgeX Foundry community for the excellent messaging framework
+- Contributors who have helped improve this library
+- Users who have provided feedback and bug reports
+
+---
+
+**Made with ❤️ for the EdgeX Foundry community**

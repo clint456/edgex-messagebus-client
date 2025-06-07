@@ -1,4 +1,41 @@
-// Package messagebus provides a high-level client for EdgeX MessageBus operations
+// Package messagebus provides a high-level client for EdgeX MessageBus operations.
+//
+// This package offers a simplified interface for interacting with EdgeX Foundry's
+// MessageBus system, supporting MQTT and NATS protocols. It provides features like
+// connection management, message publishing/subscribing, request-response patterns,
+// and binary data handling.
+//
+// Example usage:
+//
+//	config := messagebus.Config{
+//		Host:     "localhost",
+//		Port:     1883,
+//		Protocol: "tcp",
+//		Type:     "mqtt",
+//		ClientID: "my-client",
+//	}
+//
+//	client, err := messagebus.NewClient(config, logger)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	err = client.Connect()
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer client.Disconnect()
+//
+//	// Publish a message
+//	data := map[string]interface{}{"temperature": 25.6}
+//	err = client.Publish("sensors/temperature", data)
+//
+//	// Subscribe to messages
+//	handler := func(topic string, message types.MessageEnvelope) error {
+//		fmt.Printf("Received: %s\n", string(message.Payload.([]byte)))
+//		return nil
+//	}
+//	err = client.SubscribeSingle("sensors/#", handler)
 package messagebus
 
 import (

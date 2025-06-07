@@ -61,7 +61,7 @@ func main() {
 		fmt.Printf("📨 收到消息:\n")
 		fmt.Printf("   主题: %s\n", topic)
 		fmt.Printf("   CorrelationID: %s\n", message.CorrelationID)
-		
+
 		// 安全地处理 Payload
 		var payloadStr string
 		if payload, ok := message.Payload.([]byte); ok {

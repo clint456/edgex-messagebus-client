@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.23
+
+    - name: Get tag name
+      id: tag
+      run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Build binaries
+      run: |
+        # Create bin directory
+        mkdir -p bin
+        
+        # Build for multiple platforms
+        GOOS=linux GOARCH=amd64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-client-linux-amd64 ./example/main.go
+        GOOS=linux GOARCH=arm64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-client-linux-arm64 ./example/main.go
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-client-darwin-amd64 ./example/main.go
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-client-darwin-arm64 ./example/main.go
+        GOOS=windows GOARCH=amd64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-client-windows-amd64.exe ./example/main.go
+        
+        # Build advanced examples
+        GOOS=linux GOARCH=amd64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-advanced-linux-amd64 ./example/advanced/main.go
+        GOOS=linux GOARCH=arm64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-advanced-linux-arm64 ./example/advanced/main.go
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-advanced-darwin-amd64 ./example/advanced/main.go
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-advanced-darwin-arm64 ./example/advanced/main.go
+        GOOS=windows GOARCH=amd64 go build -ldflags="-X 'github.com/clint456/edgex-messagebus-client.GitCommit=${{ github.sha }}' -X 'github.com/clint456/edgex-messagebus-client.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o bin/edgex-messagebus-advanced-windows-amd64.exe ./example/advanced/main.go
+
+    - name: Create checksums
+      run: |
+        cd bin
+        sha256sum * > checksums.txt
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        
+        if [ -n "$PREV_TAG" ]; then
+          echo "## Changes since $PREV_TAG" > CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> CHANGELOG.md
+        else
+          echo "## Initial Release" > CHANGELOG.md
+          echo "This is the first release of EdgeX MessageBus Client." >> CHANGELOG.md
+        fi
+        
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        cat CHANGELOG.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: Release ${{ steps.tag.outputs.tag }}
+        body: ${{ steps.changelog.outputs.changelog }}
+        files: |
+          bin/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get tag name
+      id: tag
+      run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.tag }}
+        labels: |
+          org.opencontainers.image.title=EdgeX MessageBus Client
+          org.opencontainers.image.description=High-level EdgeX Foundry MessageBus client library
+          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          org.opencontainers.image.version=${{ steps.tag.outputs.tag }}
+          org.opencontainers.image.revision=${{ github.sha }}
