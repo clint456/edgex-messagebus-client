@@ -14,7 +14,8 @@ A high-level EdgeX Foundry MessageBus client library that provides a simple and 
 - ✅ **完整的 EdgeX MessageBus 支持** - 基于官方 `go-mod-messaging` 库
 - ✅ **连接管理** - 自动连接、断开连接和重连机制
 - ✅ **消息发布** - 支持多种数据类型的消息发布
-- ✅ **消息订阅** - 支持主题订阅和自定义消息处理
+- ✅ **智能消息订阅** - 支持通配符订阅并自动解析具体主题路径
+- ✅ **通配符支持** - 订阅 `#` 和 `+` 通配符，处理函数接收实际主题路径
 - ✅ **请求-响应模式** - 支持同步请求-响应操作
 - ✅ **二进制数据支持** - 支持发布和订阅二进制数据
 - ✅ **线程安全** - 所有操作都是线程安全的
@@ -93,9 +94,11 @@ func main() {
     }
     client.Publish("edgex/events/device/sensor01", data)
 
-    // 订阅消息
+    // 订阅消息 - 支持通配符订阅并获取具体主题
     handler := func(topic string, message types.MessageEnvelope) error {
-        fmt.Printf("收到消息: %s\n", string(message.Payload.([]byte)))
+        // topic 参数包含实际接收到的具体主题路径
+        fmt.Printf("收到消息 - 主题: %s\n", topic)
+        fmt.Printf("消息内容: %s\n", string(message.Payload.([]byte)))
         return nil
     }
     client.SubscribeSingle("edgex/events/#", handler)
@@ -104,6 +107,55 @@ func main() {
     time.Sleep(10 * time.Second)
 }
 ```
+
+### 🎯 通配符订阅快速示例
+
+```go
+// 订阅 edgex/events/# 下的所有消息
+handler := func(topic string, message types.MessageEnvelope) error {
+    // topic 参数包含实际接收到的具体主题路径
+    fmt.Printf("收到消息 - 具体主题: %s\n", topic)
+    // 例如：topic 可能是 "edgex/events/device/sensor01" 而不是 "edgex/events/#"
+
+    // 根据具体主题进行不同处理
+    switch {
+    case strings.Contains(topic, "/device/"):
+        fmt.Println("处理设备事件")
+    case strings.Contains(topic, "/alert/"):
+        fmt.Println("处理告警事件")
+    }
+
+    return nil
+}
+
+client.SubscribeSingle("edgex/events/#", handler)
+
+// 发布到不同子主题
+client.Publish("edgex/events/device/sensor01", data)
+client.Publish("edgex/events/alert/critical", alertData)
+```
+
+## 🚀 运行示例
+
+### 基础示例
+```bash
+cd example
+go run main.go
+```
+
+### 通配符订阅示例
+```bash
+cd example/wildcard
+go run main.go
+```
+
+### 高级功能示例
+```bash
+cd example/advanced
+go run main.go
+```
+
+更多示例详情请查看 [example/README.md](example/README.md)
 
 ## 📚 API 参考
 
@@ -181,21 +233,56 @@ go func() {
 
 ## 🔧 Advanced Usage | 高级用法
 
+### Wildcard Subscriptions | 通配符订阅
+
+```go
+// 订阅通配符主题并获取具体主题路径
+handler := func(topic string, message types.MessageEnvelope) error {
+    // topic 参数自动包含实际接收到的具体主题路径
+    // 例如：订阅 "edgex/events/#" 时，topic 可能是 "edgex/events/device/sensor01"
+    fmt.Printf("收到消息 - 具体主题: %s\n", topic)
+    fmt.Printf("CorrelationID: %s\n", message.CorrelationID)
+
+    // 解析消息内容
+    var payload string
+    if data, ok := message.Payload.([]byte); ok {
+        payload = string(data)
+    } else {
+        payload = fmt.Sprintf("%v", message.Payload)
+    }
+    fmt.Printf("消息内容: %s\n", payload)
+    return nil
+}
+
+// 订阅多个通配符主题
+topics := []string{"edgex/events/#", "edgex/commands/#", "edgex/alerts/#"}
+client.Subscribe(topics, handler)
+```
+
 ### Custom Message Handlers | 自定义消息处理器
 
 ```go
 // Advanced message handler with error handling
 handler := func(topic string, message types.MessageEnvelope) error {
+    // topic 参数包含实际的主题路径，不是通配符
+    fmt.Printf("处理来自主题 %s 的消息\n", topic)
+
     // Parse message payload
     var data map[string]interface{}
     if err := json.Unmarshal(message.Payload.([]byte), &data); err != nil {
         return fmt.Errorf("failed to parse message: %v", err)
     }
 
-    // Process the message
-    fmt.Printf("Processing message from %s: %+v\n", topic, data)
+    // Process the message based on topic
+    switch {
+    case strings.HasPrefix(topic, "edgex/events/device/"):
+        fmt.Printf("处理设备事件: %+v\n", data)
+    case strings.HasPrefix(topic, "edgex/events/alert/"):
+        fmt.Printf("处理告警事件: %+v\n", data)
+    default:
+        fmt.Printf("处理通用消息: %+v\n", data)
+    }
 
-    // Return error if processing fails
     return nil
 }
 ```

@@ -8,7 +8,7 @@ import (
 // Version information for the EdgeX MessageBus Client
 const (
 	// Version is the current version of the EdgeX MessageBus Client
-	Version = "1.0.0"
+	Version = "1.1.0"
 
 	// GitCommit is the git commit hash (set during build)
 	GitCommit = "unknown"

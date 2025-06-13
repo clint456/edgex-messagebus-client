@@ -314,9 +314,15 @@ func (c *Client) handleMessages(topic string, handler MessageHandler) {
 				return
 			}
 
-			// 调用用户提供的处理函数
-			if err := handler(topic, message); err != nil {
-				c.lc.Errorf("处理主题 '%s' 的消息时发生错误: %v", topic, err)
+			// 使用实际接收到的主题，如果 ReceivedTopic 为空则使用订阅主题
+			actualTopic := message.ReceivedTopic
+			if actualTopic == "" {
+				actualTopic = topic
+			}
+
+			// 调用用户提供的处理函数，传递实际的主题
+			if err := handler(actualTopic, message); err != nil {
+				c.lc.Errorf("处理主题 '%s' 的消息时发生错误: %v", actualTopic, err)
 			}
 
 		case err := <-c.errorChan:

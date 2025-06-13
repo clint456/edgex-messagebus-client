@@ -54,9 +54,11 @@ func main() {
     }
     client.Publish("my/topic", data)
 
-    // 订阅消息
+    // 订阅消息 - 支持通配符并自动获取具体主题
     handler := func(topic string, message types.MessageEnvelope) error {
-        log.Printf("收到消息: %s", string(message.Payload.([]byte)))
+        // topic 参数包含实际接收到的具体主题路径
+        log.Printf("收到消息 - 主题: %s", topic)
+        log.Printf("消息内容: %s", string(message.Payload.([]byte)))
         return nil
     }
     client.SubscribeSingle("my/topic", handler)
@@ -88,16 +90,66 @@ client.PublishBinaryData("sensors/binary", binaryData)
 ### 2. 高级订阅
 
 ```go
-// 订阅多个主题
+// 订阅多个主题 - 自动解析具体主题路径
 topics := []string{"sensors/#", "devices/#", "events/#"}
 handler := func(topic string, message types.MessageEnvelope) error {
-    log.Printf("主题: %s, 消息: %s", topic, string(message.Payload.([]byte)))
+    // topic 参数自动包含实际接收到的具体主题，而不是通配符
+    log.Printf("具体主题: %s, 消息: %s", topic, string(message.Payload.([]byte)))
     return nil
 }
 client.Subscribe(topics, handler)
 ```
 
-### 3. 请求-响应模式
+### 3. 通配符订阅和具体主题获取
+
+```go
+// 通配符订阅示例 - 接收 edgex/events/# 下的所有消息
+handler := func(topic string, message types.MessageEnvelope) error {
+    // topic 参数包含实际接收到的具体主题路径
+    fmt.Printf("📨 收到消息:\n")
+    fmt.Printf("   具体主题: %s\n", topic)
+    fmt.Printf("   CorrelationID: %s\n", message.CorrelationID)
+
+    // 根据主题路径进行不同处理
+    switch {
+    case strings.Contains(topic, "/device/"):
+        fmt.Printf("   类型: 设备事件\n")
+    case strings.Contains(topic, "/alert/"):
+        fmt.Printf("   类型: 告警事件\n")
+    case strings.Contains(topic, "/gateway/"):
+        fmt.Printf("   类型: 网关事件\n")
+    default:
+        fmt.Printf("   类型: 通用事件\n")
+    }
+
+    // 处理消息内容
+    var payloadStr string
+    if payload, ok := message.Payload.([]byte); ok {
+        payloadStr = string(payload)
+    } else {
+        payloadStr = fmt.Sprintf("%v", message.Payload)
+    }
+    fmt.Printf("   内容: %s\n", payloadStr)
+    return nil
+}
+
+// 订阅通配符主题
+client.SubscribeSingle("edgex/events/#", handler)
+
+// 发布测试消息到不同子主题
+client.Publish("edgex/events/device/sensor01", map[string]interface{}{
+    "temperature": 25.6,
+    "timestamp": time.Now(),
+})
+
+client.Publish("edgex/events/alert/critical/fire", map[string]interface{}{
+    "severity": "critical",
+    "location": "building-A",
+    "timestamp": time.Now(),
+})
+```
+
+### 4. 请求-响应模式
 
 ```go
 // 创建请求

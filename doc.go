@@ -63,8 +63,9 @@ connection management, error handling, and logging capabilities.
 		}
 		client.Publish("sensors/temperature", data)
 
-		// Subscribe to messages
+		// Subscribe to messages with wildcard support
 		handler := func(topic string, message types.MessageEnvelope) error {
+			// topic parameter contains the actual received topic path
 			log.Printf("Received message on %s: %s", topic, string(message.Payload.([]byte)))
 			return nil
 		}
