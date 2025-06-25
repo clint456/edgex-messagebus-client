@@ -392,20 +392,21 @@ func (c *Client) GetErrorChannel() <-chan error {
 
 // CreateMessageEnvelope 创建标准的消息信封
 func (c *Client) CreateMessageEnvelope(data interface{}, correlationID string) (types.MessageEnvelope, error) {
-	var payload []byte
-	var err error
+	// mqtt不纠结格式，直接丢进去就完事了
+	// var payload []byte
+	// var err error
 
-	switch v := data.(type) {
-	case []byte:
-		payload = v
-	case string:
-		payload = []byte(v)
-	default:
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return types.MessageEnvelope{}, fmt.Errorf("序列化消息数据失败: %v", err)
-		}
-	}
+	// switch v := data.(type) {
+	// case []byte:
+	// 	payload = v
+	// case string:
+	// 	payload = []byte(v)
+	// default:
+	// 	payload, err = json.Marshal(data)
+	// 	if err != nil {
+	// 		return types.MessageEnvelope{}, fmt.Errorf("序列化消息数据失败: %v", err)
+	// 	}
+	// }
 
 	if correlationID == "" {
 		correlationID = "MessageBus-" + uuid.New().String()
@@ -413,7 +414,7 @@ func (c *Client) CreateMessageEnvelope(data interface{}, correlationID string) (
 
 	return types.MessageEnvelope{
 		CorrelationID: correlationID,
-		Payload:       payload,
+		Payload:       data,
 		ContentType:   "application/json",
 	}, nil
 }
